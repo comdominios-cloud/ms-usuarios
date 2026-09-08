@@ -1,0 +1,28 @@
+# Despliegue en la VM de PRODUCCION.
+#
+# PostgreSQL NO esta aca: la base `condominio_usuarios` vive en el contenedor
+# de PostgreSQL de la VM de base de datos, al lado de `condominio_residentes`.
+# Por eso POSTGRES_HOST debe ser la IP PRIVADA de esa maquina.
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+
+services:
+  ms-usuarios:
+    image: osomar/ms-usuarios:0.1.0
+    container_name: ms-usuarios
+    ports:
+      - "9006:8000"
+    env_file: .env
+    restart: unless-stopped
+
+# ------------------------------------------------------------------
+# En la VM de base de datos, la base de este servicio se crea dentro del
+# contenedor de PostgreSQL que ya existe:
+#
+#   docker exec -i condominio-postgres psql -U <user> -c "CREATE DATABASE condominio_usuarios;"
+#   docker exec -i condominio-postgres psql -U <user> -d condominio_usuarios < docs/schema.sql
+#   docker exec -i condominio-postgres psql -U <user> -d condominio_usuarios < docs/seed_data.sql
+#
+# Asi se mantienen los 3 contenedores de base de datos que pidio el ACL.
+# ------------------------------------------------------------------

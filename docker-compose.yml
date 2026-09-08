@@ -1,0 +1,44 @@
+# Levanta ms-usuarios junto a su PostgreSQL para desarrollo local.
+#   docker compose up --build
+#
+# En produccion la base NO se levanta aca: vive como otra database dentro del
+# contenedor PostgreSQL de la VM de base de datos.
+services:
+  postgres:
+    image: postgres:16
+    container_name: ms-usuarios-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # 55433 en tu maquina (el 55432 lo usa ms-residentes en desarrollo).
+      - "55433:5432"
+    volumes:
+      - pg_data_usuarios:/var/lib/postgresql/data
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    container_name: ms-usuarios-api
+    ports:
+      # 9006 hacia afuera (rango del curso) -> 8000 dentro del contenedor.
+      - "9006:8000"
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pg_data_usuarios:
